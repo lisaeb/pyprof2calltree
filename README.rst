@@ -42,6 +42,8 @@ Upon installation you should have a `pyprof2calltree` script in your path::
     -r scriptfile [args ...], --run-script scriptfile [args ...]
                           Name of the Python script to run to collect profiling
                           data
+    -s {s,ms,us,ns}, --scale {s,ms,us,ns}
+                          Time scale
 
 
 Python shell usage
