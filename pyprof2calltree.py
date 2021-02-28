@@ -48,7 +48,17 @@ from collections import defaultdict
 
 __all__ = ['convert', 'visualize', 'CalltreeConverter']
 
-SCALE = 1e9
+
+class Scale(object):
+    def __init__(self, unit):
+        SCALES = {
+            's': (1, 's', 'Seconds'),
+            'ms': (1e3, 'ms', 'Milliseconds'),
+            'us': (1e6, 'us', 'Microseconds'),
+            'ns': (1e9, 'ns', 'Nanoseconds')
+        }
+
+        self.scale, self.unit, self.name = SCALES[unit]
 
 
 class Code(object):
@@ -169,7 +179,7 @@ KCACHEGRIND_EXECUTABLES = ["kcachegrind", "qcachegrind"]
 class CalltreeConverter(object):
     """Convert raw cProfile or pstats data to the calltree format"""
 
-    def __init__(self, profiling_data):
+    def __init__(self, profiling_data, scale=None):
         if is_basestring(profiling_data):
             # treat profiling_data as a filename of pstats serialized data
             self.entries = pstats2entries(pstats.Stats(profiling_data))
@@ -180,6 +190,11 @@ class CalltreeConverter(object):
             # assume this are direct cProfile entries
             self.entries = profiling_data
         self.out_file = None
+        self.scale = scale
+
+        if not scale:
+            self.scale = Scale('ns')
+
         self._code_by_position = defaultdict(set)
         self._populate_code_by_position()
 
@@ -204,8 +219,8 @@ class CalltreeConverter(object):
     def output(self, out_file):
         """Write the converted entries to out_file"""
         self.out_file = out_file
-        out_file.write('event: ns : Nanoseconds\n')
-        out_file.write('events: ns\n')
+        out_file.write('event: {} : {}\n'.format(self.scale.unit, self.scale.name))
+        out_file.write('events: {}\n'.format(self.scale.unit))
         self._output_summary()
         for entry in sorted(self.entries, key=_entry_sort_key):
             self._output_entry(entry)
@@ -249,7 +264,7 @@ class CalltreeConverter(object):
     def _output_summary(self):
         max_cost = 0
         for entry in self.entries:
-            totaltime = int(entry.totaltime * SCALE)
+            totaltime = int(entry.totaltime * self.scale.scale)
             max_cost = max(max_cost, totaltime)
         # Version 0.7.4 of kcachegrind appears to ignore the summary line and
         # calculate the total cost by summing the exclusive cost of all
@@ -265,7 +280,7 @@ class CalltreeConverter(object):
         munged_name = self.munged_function_name(code)
         out_file.write('fl=%s\nfn=%s\n' % (co_filename, munged_name))
 
-        inlinetime = int(entry.inlinetime * SCALE)
+        inlinetime = int(entry.inlinetime * self.scale.scale)
         out_file.write('%d %d\n' % (co_firstlineno, inlinetime))
 
         # recursive calls are counted in entry.calls
@@ -273,7 +288,7 @@ class CalltreeConverter(object):
             for subentry in sorted(entry.calls, key=_entry_sort_key):
                 self._output_subentry(co_firstlineno, subentry.code,
                                       subentry.callcount,
-                                      int(subentry.totaltime * SCALE))
+                                      int(subentry.totaltime * self.scale.scale))
 
         out_file.write('\n')
 
@@ -303,9 +318,13 @@ def main():
                         dest='script',
                         help="Name of the Python script to run to collect"
                         " profiling data")
+    parser.add_argument('-s', '--scale', choices=['s', 'ms', 'us', 'ns'],
+                        default='ns',
+                        help='Time scale')
     args = parser.parse_args()
 
     outfile = args.outfile
+    scale = Scale(args.scale)
 
     if args.script is not None:
         # collect profiling data by running the given script
@@ -323,7 +342,7 @@ def main():
             cmd.extend(args.script)
             subprocess.check_call(cmd)
 
-            kg = CalltreeConverter(tmp_path)
+            kg = CalltreeConverter(tmp_path, scale)
         finally:
             os.remove(tmp_path)
 
@@ -336,7 +355,7 @@ def main():
             # prevent name collisions by appending another extension
             outfile += ".log"
 
-        kg = CalltreeConverter(pstats.Stats(args.infile))
+        kg = CalltreeConverter(pstats.Stats(args.infile), scale)
 
     else:
         # at least an input file or a script to run is required
