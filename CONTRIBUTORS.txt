@@ -47,6 +47,9 @@ In chronological order:
   * A huge number of small fixes and consistency
     improvements across code, docs and setup.py alike.
 
+* Meesha <44530786+meesha7@users.noreply.github.com>
+  * Support for multiple time units
+
 * [Your name or handle] <[email or website]>
   * [Brief summary of your changes]
 
