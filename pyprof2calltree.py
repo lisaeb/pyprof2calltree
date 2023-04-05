@@ -394,6 +394,7 @@ def convert(profiling_data, outputfile, scale:str='ns'):
     `outputfile` can either be:
         - a file() instance open in write mode
         - a filename
+
     `scale` is one of:
         - 's' for 'Seconds'
         - 'ms' for 'Milliseconds'
