@@ -179,7 +179,7 @@ KCACHEGRIND_EXECUTABLES = ["kcachegrind", "qcachegrind"]
 class CalltreeConverter(object):
     """Convert raw cProfile or pstats data to the calltree format"""
 
-    def __init__(self, profiling_data, scale=None):
+    def __init__(self, profiling_data, scale='ns'):
         if is_basestring(profiling_data):
             # treat profiling_data as a filename of pstats serialized data
             self.entries = pstats2entries(pstats.Stats(profiling_data))
@@ -190,10 +190,7 @@ class CalltreeConverter(object):
             # assume this are direct cProfile entries
             self.entries = profiling_data
         self.out_file = None
-        self.scale = scale
-
-        if not scale:
-            self.scale = Scale('ns')
+        self.scale = Scale(scale)
 
         self._code_by_position = defaultdict(set)
         self._populate_code_by_position()
@@ -386,7 +383,7 @@ def visualize(profiling_data):
     converter.visualize()
 
 
-def convert(profiling_data, outputfile):
+def convert(profiling_data, outputfile, scale:str='ns'):
     """convert `profiling_data` to calltree format and dump it to `outputfile`
 
     `profiling_data` can either be:
@@ -397,8 +394,13 @@ def convert(profiling_data, outputfile):
     `outputfile` can either be:
         - a file() instance open in write mode
         - a filename
+    `scale` is one of:
+        - 's' for 'Seconds'
+        - 'ms' for 'Milliseconds'
+        - 'us' for 'Microseconds'
+        - 'ns' for 'Nanoseconds'
     """
-    converter = CalltreeConverter(profiling_data)
+    converter = CalltreeConverter(profiling_data, scale)
     if is_basestring(outputfile):
         with open(outputfile, "w") as f:
             converter.output(f)
